@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: starai-web
+  namespace: starai-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: starai-web
+  template:
+    metadata:
+      labels:
+        app: starai-web
+      annotations:
+        conjur.org/container-mode: "sidecar"
+        conjur.org/authenticator-id: "Arun-MIM"
+    spec:
+      serviceAccountName: starai-app-sa
+      containers:
+        - name: starai-web
+          image: arunrana1214/starai-mongo:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8443
+          command: ["/bin/sh","-lc"]
+          args:
+            - >
+              exec gunicorn --workers 2 --threads 4
+              --bind 0.0.0.0:8443
+              --certfile /tls/tls.crt --keyfile /tls/tls.key
+              app:app
+          env:
+            # from your existing conjur-connect (already present for the sidecar)
+            - name: CONJUR_API_BASE
+              valueFrom:
+                configMapKeyRef:
+                  name: conjur-connect
+                  key: CONJUR_APPLIANCE_URL     # e.g. https://<tenant>.secretsmgr.cyberark.cloud/api
+            - name: CONJUR_ACCOUNT
+              valueFrom:
+                configMapKeyRef:
+                  name: conjur-connect
+                  key: CONJUR_ACCOUNT           # e.g. conjur
+            # from the small app config
+            - name: CONJUR_TOKEN_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: starai-web-config
+                  key: CONJUR_TOKEN_PATH
+            - name: MONGO_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: starai-web-config
+                  key: MONGO_DB
+          volumeMounts:
+            - name: starai-tls
+              mountPath: /tls
+              readOnly: true
+            - name: conjur-access-token
+              mountPath: /run/conjur
+              readOnly: true
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+        - name: authenticator
+          image: cyberark/conjur-authn-k8s-client
+          imagePullPolicy: Always
+          env:
+            - name: JWT_TOKEN_PATH
+              value: /var/run/secrets/tokens/jwt
+            - name: LOG_LEVEL
+              value: debug
+          envFrom:
+            - configMapRef:
+                name: conjur-connect            # <-- unchanged, as you wanted
+          volumeMounts:
+            - name: conjur-access-token
+              mountPath: /run/conjur
+            - name: jwt-token
+              mountPath: /var/run/secrets/tokens
+
+      volumes:
+        - name: starai-tls
+          secret:
+            secretName: starai-tls
+        - name: conjur-access-token
+          emptyDir:
+            medium: Memory
+        - name: jwt-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: jwt
+                  expirationSeconds: 6000
+                  audience: https://kubernetes.default.svc
