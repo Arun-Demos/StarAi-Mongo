@@ -4,5 +4,5 @@ metadata:
   name: starai-web-config
   namespace: starai-mongo
 data:
-  MONGO_DB: starai
+  MONGO_DB: stardb
   CONJUR_TOKEN_PATH: /run/conjur/access-token
