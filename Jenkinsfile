@@ -99,7 +99,6 @@ spec:
                  
                  echo "[INFO] Deploying configmap"
                  kubectl apply -f manifests/starai-configmap.yaml
-                 kubectl apply -f manifests/conjurconfig.yaml
                 
                  echo "[INFO] Deploying Application Pod"
                  kubectl apply -f manifests/deployment.yaml
