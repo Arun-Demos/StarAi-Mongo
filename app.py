@@ -5,16 +5,27 @@ from decimal import Decimal
 from bson.decimal128 import Decimal128
 from pymongo import MongoClient
 from flask import Flask, render_template, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)  # respect ALB headers
 logging.basicConfig(level=logging.INFO)
 
 # --- Config (override via env / ConfigMap) ---
-CONJUR_API_BASE   = os.getenv("CONJUR_API_BASE", "https://aruntenant.secretsmgr.cyberark.cloud/api")
+# Accept either CONJUR_API_BASE or CONJUR_APPLIANCE_URL from ConfigMap; ensure '/api' is present
+_raw_conjur_base = (
+    os.getenv("CONJUR_API_BASE") or
+    os.getenv("CONJUR_APPLIANCE_URL") or
+    "https://aruntenant.secretsmgr.cyberark.cloud"
+)
+CONJUR_API_BASE = _raw_conjur_base.rstrip("/")
+if not CONJUR_API_BASE.endswith("/api"):
+    CONJUR_API_BASE = f"{CONJUR_API_BASE}/api"
+
 CONJUR_ACCOUNT    = os.getenv("CONJUR_ACCOUNT", "conjur")
 CONJUR_TOKEN_PATH = os.getenv("CONJUR_TOKEN_PATH", "/run/conjur/access-token")
 
-MONGO_DB      = os.getenv("MONGO_DB", "stardb")  # <-- your DB name
+MONGO_DB      = os.getenv("MONGO_DB", "stardb")
 MONGO_AUTH_DB = os.getenv("MONGO_AUTH_DB", "admin")  # where the user lives (likely 'admin')
 
 MONGO_SECRETS = {
@@ -23,6 +34,8 @@ MONGO_SECRETS = {
     "pass": os.getenv("MONGO_PASS_VAR", "data/vault/DevOps/MongoEB-EC2/password"),
 }
 
+HTTP_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "10"))
+
 # --- Conjur helpers ---
 def _auth_header() -> dict:
     # Wait briefly if token not written yet (sidecar race)
@@ -30,19 +43,21 @@ def _auth_header() -> dict:
     while not os.path.exists(CONJUR_TOKEN_PATH) and time.time() < deadline:
         time.sleep(0.5)
     with open(CONJUR_TOKEN_PATH, "rb") as f:
-        token_json = f.read()  # bytes of JSON token
-    b64 = base64.b64encode(token_json).decode("ascii")
+        token_bytes = f.read()  # raw short-lived token
+    b64 = base64.b64encode(token_bytes).decode("ascii")
     return {"Authorization": f'Token token="{b64}"'}
 
 def get_secret(secret_id: str) -> str:
     url = f"{CONJUR_API_BASE}/secrets/{CONJUR_ACCOUNT}/variable/{secret_id}"
     for attempt in (1, 2):
-        r = requests.get(url, headers=_auth_header(), timeout=10)
+        r = requests.get(url, headers=_auth_header(), timeout=HTTP_TIMEOUT)
         if r.status_code == 401 and attempt == 1:
-            # token rotates fast; refresh once
+            # token rotates fast; retry once with fresh header
+            time.sleep(0.3)
             continue
         r.raise_for_status()
         return r.text.strip()
+    raise RuntimeError(f"Failed to fetch secret {secret_id}")
 
 def get_mongo_uri() -> str:
     return get_secret(MONGO_SECRETS["uri"])
@@ -62,26 +77,24 @@ def _dec128_to_float(x):
     return x
 
 def query_services(uri: str, user: str, password: str):
-    # directConnection=True because you're talking to a single mongod
     client = MongoClient(
         uri,
         username=user,
         password=password,
         authSource=MONGO_AUTH_DB,
-        directConnection=True,
+        directConnection=True,              # set False if using a replica set/connection string
         serverSelectionTimeoutMS=5000,
         connectTimeoutMS=5000,
         socketTimeoutMS=10000,
     )
     try:
         coll = client[MONGO_DB]["services"]
-        # Your docs have fields: name, subscribers, revenue
         cursor = coll.find({}, {"_id": 0, "name": 1, "subscribers": 1, "revenue": 1})
         rows = []
         for d in cursor:
             rows.append({
-                "name": d["name"],
-                "subscribers": int(d["subscribers"]),
+                "name": d.get("name"),
+                "subscribers": int(d.get("subscribers", 0)),
                 "revenue": _dec128_to_float(d.get("revenue")),
             })
         return rows
@@ -96,10 +109,12 @@ def index():
         user = get_mongo_user()
         password = get_mongo_password()
         app.logger.info(f"Connecting to Mongo DB '{MONGO_DB}' at {uri} as {user}")
-
         services = query_services(uri, user, password)
-        # If you don't have a template yet, you can hit /api/services to see JSON
-        return render_template("index.html", services=services)
+        # If you don't have a template yet, fall back to JSON
+        try:
+            return render_template("index.html", services=services)
+        except Exception:
+            return jsonify(services)
     except Exception as e:
         app.logger.exception("Failed handling /")
         return f"Error: {e}", 500
@@ -116,5 +131,5 @@ def healthz():
     return "ok", 200
 
 if __name__ == "__main__":
-    # Flask dev server (use gunicorn in prod)
+    # Dev server only; in Kubernetes you run via gunicorn
     app.run(host="0.0.0.0", port=80)
