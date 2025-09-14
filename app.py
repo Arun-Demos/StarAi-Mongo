@@ -18,9 +18,9 @@ MONGO_DB      = os.getenv("MONGO_DB", "stardb")  # <-- your DB name
 MONGO_AUTH_DB = os.getenv("MONGO_AUTH_DB", "admin")  # where the user lives (likely 'admin')
 
 MONGO_SECRETS = {
-    "uri":  os.getenv("MONGO_URI_VAR",  "data/vault/StarAi-Mongo/Arun-Starimongo/uri"),
-    "user": os.getenv("MONGO_USER_VAR", "data/vault/StarAi-Mongo/Arun-Starimongo/username"),
-    "pass": os.getenv("MONGO_PASS_VAR", "data/vault/StarAi-Mongo/Arun-Starimongo/password"),
+    "uri":  os.getenv("MONGO_URI_VAR",  "data/vault/DevOps/MongoEB-EC2/address"),
+    "user": os.getenv("MONGO_USER_VAR", "data/vault/DevOps/MongoEB-EC2/username"),
+    "pass": os.getenv("MONGO_PASS_VAR", "data/vault/DevOps/MongoEB-EC2/password"),
 }
 
 # --- Conjur helpers ---
