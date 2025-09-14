@@ -97,16 +97,16 @@ spec:
                  echo "[INFO] Deploying configmap"
                  kubectl apply -f manifests/starai-configmap.yaml
                 
-                echo "[INFO] Deploying Application Pod"
-                kubectl apply -f manifests/deployment.yaml
+                 echo "[INFO] Deploying Application Pod"
+                 kubectl apply -f manifests/deployment.yaml
 
-                echo "[INFO] Deploying Service"
-                kubectl apply -f manifests/Service.yaml
+                 echo "[INFO] Deploying Service"
+                 kubectl apply -f manifests/Service.yaml
 
-                echo "[INFO] Deploying Ingress"
-                kubectl apply -f manifests/Ingress.yaml
-              '''
-            }
+                 echo "[INFO] Deploying Ingress"
+                 kubectl apply -f manifests/Ingress.yaml
+               '''
+             }
           }
         }
       }
