@@ -94,6 +94,9 @@ spec:
                  echo "Verifying AWS identity:"
                  aws sts get-caller-identity
  
+                 echo "[INFO] Deploying serviceaccount"
+                 kubectl apply -f manifests/serviceaccount.yaml
+                 
                  echo "[INFO] Deploying configmap"
                  kubectl apply -f manifests/starai-configmap.yaml
                 
