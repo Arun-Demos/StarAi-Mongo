@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py ./app.py
 COPY gunicorn.conf.py ./gunicorn.conf.py
+COPY templates ./templates
 
 # Replace gunicorn with your wrapper (so K8s CLI TLS flags won't crash the app)
 RUN mv /usr/local/bin/gunicorn /usr/local/bin/gunicorn.real
