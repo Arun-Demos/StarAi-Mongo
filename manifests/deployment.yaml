@@ -54,9 +54,10 @@ spec:
                   name: starai-web-config
                   key: MONGO_DB
           volumeMounts:
-            - name: starai-tls
-              mountPath: /tls
-              readOnly: true
+            # Enable below if you want to terminate TLS in the application
+            # - name: starai-tls
+            #   mountPath: /tls
+            #   readOnly: true
             - name: conjur-access-token
               mountPath: /run/conjur
               readOnly: true
@@ -86,9 +87,10 @@ spec:
               mountPath: /var/run/secrets/tokens
 
       volumes:
-        - name: starai-tls
-          secret:
-            secretName: starai-tls
+        # Enable below if you want to terminate TLS in the application
+        # - name: starai-tls
+        #  secret:
+        #    secretName: starai-tls
         - name: conjur-access-token
           emptyDir:
             medium: Memory
