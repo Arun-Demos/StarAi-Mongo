@@ -3,12 +3,12 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: starai-tls
-  namespace: starai-demo
+  namespace: starai-mongo
 spec:
   secretName: starai-tls         # will hold tls.crt / tls.key
-  commonName: starai.sgcybersec.com  # CN
+  commonName: staraimongo.sgcybersec.com  # CN
   dnsNames:
-    - starai.sgcybersec.com          # same host as Ingress
+    - staraimongo.sgcybersec.com          # same host as Ingress
   issuerRef:
     name: venafi-privateca-cluster-issuer
     kind: VenafiClusterIssuer
