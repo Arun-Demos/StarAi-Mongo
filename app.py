@@ -6,6 +6,7 @@ from bson.decimal128 import Decimal128
 from pymongo import MongoClient
 from flask import Flask, render_template, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
+from urllib.parse import quote
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)  # respect ALB headers
@@ -48,13 +49,12 @@ def _auth_header() -> dict:
     return {"Authorization": f'Token token="{b64}"'}
 
 def get_secret(secret_id: str) -> str:
-    url = f"{CONJUR_API_BASE}/secrets/{CONJUR_ACCOUNT}/variable/{secret_id}"
+    var_id = quote(secret_id, safe='')  # <— encode
+    url = f"{CONJUR_API_BASE}/secrets/{CONJUR_ACCOUNT}/variable/{var_id}"
     for attempt in (1, 2):
         r = requests.get(url, headers=_auth_header(), timeout=HTTP_TIMEOUT)
         if r.status_code == 401 and attempt == 1:
-            # token rotates fast; retry once with fresh header
-            time.sleep(0.3)
-            continue
+            time.sleep(0.3); continue
         r.raise_for_status()
         return r.text.strip()
     raise RuntimeError(f"Failed to fetch secret {secret_id}")
