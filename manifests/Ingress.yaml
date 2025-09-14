@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: starai-web
-  namespace: starai-demo
+  namespace: starai-mongo
   annotations:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
@@ -20,7 +20,7 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-path: /healthz
 spec:
   rules:
-    - host: starai.sgcybersec.com
+    - host: staraimongo.sgcybersec.com
       http:
         paths:
           - path: /
