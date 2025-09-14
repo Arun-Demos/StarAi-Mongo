@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: starai-web
-  namespace: starai-demo
+  namespace: starai-mongo
 spec:
   replicas: 1
   selector:
