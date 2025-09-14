@@ -15,8 +15,8 @@ metadata:
     # Redirect HTTP -> HTTPS on ALB
     alb.ingress.kubernetes.io/ssl-redirect: "443"
     # Talk HTTPS to pods
-    alb.ingress.kubernetes.io/backend-protocol: HTTPS
-    alb.ingress.kubernetes.io/healthcheck-protocol: HTTPS
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
     alb.ingress.kubernetes.io/healthcheck-port: traffic-port
     alb.ingress.kubernetes.io/healthcheck-path: /healthz
 spec:
